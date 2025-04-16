@@ -61,7 +61,8 @@ target_link_libraries(PatroUDP
     pico_cyw43_arch_lwip_threadsafe_background
     hardware_i2c
     hardware_adc
-        )
+    hardware_pwm
+)
 
 pico_add_extra_outputs(PatroUDP)
 

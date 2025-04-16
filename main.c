@@ -1,16 +1,13 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "pico/cyw43_arch.h"
-
-// Network
-#include "lwip/pbuf.h"
-#include "lwip/udp.h"
 
 // Patro libs
 #include "display.h"
 #include "draw.h"
 #include "text.h"
 #include "buttons.h"
+#include "led.h"
+#include "wifi_udp.h"
 
 // Math
 #include "math.h"
@@ -18,27 +15,8 @@
 // Time
 #include "time.h"
 
-// Definitions
-#define UDP_PORT 5000
-#define BEACON_MSG_LEN_MAX 127
-#define BEACON_TARGET "192.168.137.1"
-#define BEACON_INTERVAL_MS 1000
-
-#define WIFI_SSID "pat - senha: freertos"
-#define WIFI_PASSWORD "freertos"
-
 // Global variables
 int pressedTimer = 0;
-struct udp_pcb *g_pcb = NULL;
-
-struct repeating_timer timer;
-
-void showError(const char *msg)
-{
-    clearDisplay();
-    drawTextCentered(msg, 8);
-    showDisplay();
-}
 
 void sendInfo()
 {
@@ -58,7 +36,7 @@ void sendInfo()
     memset(req, 0, BEACON_MSG_LEN_MAX + 1);
     snprintf(req, BEACON_MSG_LEN_MAX, "%d\n", counter);
 
-    err_t er = udp_sendto(g_pcb, p, &addr, UDP_PORT);
+    err_t er = udp_sendto(gPCB, p, &addr, UDP_PORT);
     pbuf_free(p);
 
     if (er != ERR_OK)
@@ -69,6 +47,7 @@ void sendInfo()
     {
         printf("Sent packet %d\n", counter);
         counter++;
+        counter = counter % 100;
     }
 }
 
@@ -109,45 +88,58 @@ void setup()
     initDisplay();
     initButtons();
     setButtonCallback(buttonCallback);
+    initLeds();
+    setLedBrightness(LED_RED_PIN, 0);
+
+    clearDisplay();
+    drawTextCentered("Patro UDP", 16);
+    drawTextCentered("Starting...", 24);
+    showDisplay();
+}
+
+void udpReceiveCallback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
+{
+    if (!p)
+    {
+        printf("Received empty packet\n");
+        return;
+    }
+
+    // Copia os dados recebidos para uma string (garantindo null terminator)
+    char msg[BEACON_MSG_LEN_MAX + 1];
+    memset(msg, 0, sizeof(msg));
+    memcpy(msg, p->payload, MIN(p->len, BEACON_MSG_LEN_MAX));
+
+    printf("Received UDP packet from %s:%d:\n", ipaddr_ntoa(addr), port);
+    printf("Message: %s\n", msg);
+
+    // Mostra no display (opcional)
+    clearDisplay();
+    drawTextCentered(msg, 4);
+    showDisplay();
+    setLedBrightness(LED_RED_PIN, 255);
+    sleep_ms(300); // Só para dar tempo de ler
+    setLedBrightness(LED_RED_PIN, 0);
+
+    pbuf_free(p);
 }
 
 int main()
 {
     setup();
+    wifiSetup();
 
-    if (cyw43_arch_init())
-    {
-        printf("Failed to init CYW43\n");
-        showError("Failed to init CYW43");
-        return 1;
-    }
-
-    cyw43_arch_enable_sta_mode();
-
-    printf("Connecting to Wi-Fi...\n");
-    showError("Connecting to Wi-Fi...");
-    if (cyw43_arch_wifi_connect_timeout_ms(WIFI_SSID, WIFI_PASSWORD, CYW43_AUTH_WPA2_AES_PSK, 30000))
-    {
-        printf("Failed to connect to Wi-Fi\n");
-        showError("Failed to connect to Wi-Fi");
-        return 1;
-    }
-    else
-    {
-        printf("Connected.\n");
-        showError("Connected.");
-        sleep_ms(269);
-    }
-
-    g_pcb = udp_new();
-    if (!g_pcb)
+    gPCB = udp_new();
+    if (!gPCB)
     {
         printf("Failed to create UDP PCB\n");
-        showError("PCB fail");
+        drawError("PCB fail");
         return 1;
     }
 
-    add_repeating_timer_ms(69, timerCallback, NULL, &timer);
+    udp_recv(gPCB, udpReceiveCallback, NULL);
+
+    add_repeating_timer_ms(69, timerCallback, NULL, &sendUDPTimer);
 
     while (true)
     {
@@ -161,6 +153,7 @@ int main()
         snprintf(buf, sizeof(buf), "Pressed: %d", pressedTimer);
         drawText(0, 28, buf);
 
+        // Wave
         int _spd = 10 + cos(time_us_32() / 1000000.0 * 2 * M_PI) * 3;
         int _amp = 4 + sin(time_us_32() / 1000000.0 * 2 * M_PI) * 2;
         drawWave(SCREEN_HEIGHT - 8, _spd, _amp);

@@ -89,3 +89,10 @@ void drawWave(int y, float speed, float amplitude)
         ssd1306_draw_line(&display, _x1, _y1, _x2, _y2);
     }
 }
+
+void drawError(const char *msg)
+{
+    clearDisplay();
+    drawTextCentered(msg, 8);
+    showDisplay();
+}
