@@ -2,6 +2,7 @@
 
 struct udp_pcb *gPCB = NULL;
 struct repeating_timer sendUDPTimer;
+ip_addr_t gTargetIP = {0};
 
 void wifiInitCYW43()
 {
@@ -28,6 +29,7 @@ void wifiSetup()
 
 bool wifiConnect(const char *ssid, const char *password)
 {
+    printf("Connecting to SSID: %s\n", ssid);
     if (cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, 30000))
     {
         printf("Failed to connect to Wi-Fi\n");
@@ -43,4 +45,22 @@ bool wifiConnect(const char *ssid, const char *password)
 void wifiDisconnect()
 {
     // not implemented
+}
+
+bool sendUDP(const char *msg)
+{
+    printf("[UDP] Sending: %s\n", msg);
+
+    ip_addr_t addr;
+    ipaddr_aton(BEACON_TARGET, &addr);
+
+    struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, strlen(msg) + 1, PBUF_RAM);
+    if (!p)
+        return false;
+
+    memcpy(p->payload, msg, strlen(msg) + 1);
+    err_t er = udp_sendto(gPCB, p, &addr, UDP_PORT);
+    pbuf_free(p);
+
+    return er == ERR_OK;
 }

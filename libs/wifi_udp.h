@@ -16,12 +16,15 @@
 
 extern struct udp_pcb *gPCB;
 extern struct repeating_timer sendUDPTimer;
+extern ip_addr_t gTargetIP;
 
 void wifiInitCYW43();
 void wifiEnableSTAMode();
-
 void wifiSetup();
+
 bool wifiConnect(const char *ssid, const char *password);
 void wifiDisconnect();
+
+bool sendUDP(const char *msg);
 
 #endif // WIFI_UDP_H
