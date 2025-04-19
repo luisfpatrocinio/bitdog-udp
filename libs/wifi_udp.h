@@ -4,6 +4,7 @@
 // Network
 #include "lwip/pbuf.h"
 #include "lwip/udp.h"
+#include "lwip/netif.h"
 #include "pico/cyw43_arch.h"
 
 #define UDP_PORT 5000
@@ -22,8 +23,14 @@ void wifiInitCYW43();
 void wifiEnableSTAMode();
 void wifiSetup();
 
-bool wifiConnect(const char *ssid, const char *password);
+bool wifiConnectTimeout(const char *ssid, const char *password, int timeout_ms);
+bool wifiConnectAsync(const char *ssid, const char *password);
+
+bool wifiIsConnected();
+
 void wifiDisconnect();
+
+int wifiGetStatus();
 
 bool sendUDP(const char *msg);
 

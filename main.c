@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include "pico/stdlib.h"
-#include "hardware/watchdog.h"
 
 // Patro libs
 #include "display.h"
@@ -10,6 +9,7 @@
 #include "led.h"
 #include "wifi_udp.h"
 #include "approach.h"
+#include "reset.h"
 
 // Math
 #include "math.h"
@@ -20,6 +20,7 @@
 // Global variables
 int pressedTimer = 0;
 float sinAmplitude = 1.0;
+float sinSpeed = 1.0;
 
 void runCommand(char *msg);
 void runCommandParam(char *msg, char *param);
@@ -53,12 +54,7 @@ void runCommandParam(char *msg, char *param)
     else if (strcmp(msg, "reset") == 0)
     {
         printf("[UDP] RESET solicitado.");
-        watchdog_enable(1, 1);
-        while (true)
-        {
-            // Wait for the watchdog to reset the device
-            tight_loop_contents();
-        }
+        resetProgram();
     }
 
     // CONNECTED
@@ -281,6 +277,77 @@ int main()
     // Setup
     setup();
     wifiSetup();
+
+    // Wi-fi connection screen
+    int retryTimer = 0;
+    wifiConnectAsync(WIFI_SSID, WIFI_PASSWORD);
+    while (!wifiIsConnected())
+    {
+        clearDisplay();
+
+        int linkY = SCREEN_HEIGHT - 8;
+        switch (wifiGetStatus())
+        {
+        case CYW43_LINK_DOWN:
+            drawTextCentered("Link Down", linkY);
+            break;
+        case CYW43_LINK_JOIN:
+            sinSpeed = approach(sinSpeed, 2, 0.05f);
+            sinAmplitude = approach(sinAmplitude, 4, 0.05f);
+            drawTextCentered("Link Join", linkY);
+            break;
+        case CYW43_LINK_NOIP:
+            drawTextCentered("Link NoIP", linkY);
+            break;
+        case CYW43_LINK_UP:
+            drawTextCentered("Link UP", linkY);
+            break;
+        case CYW43_LINK_FAIL:
+            drawTextCentered("Link Fail", linkY);
+            break;
+        case CYW43_LINK_NONET:
+            sinSpeed = approach(sinSpeed, 1, 0.05f);
+            sinAmplitude = approach(sinAmplitude, 0, 0.2f);
+            drawTextCentered("Link NoNet", linkY);
+            if (retryTimer <= 0)
+            {
+                retryTimer = 80;
+            }
+            break;
+        case CYW43_LINK_BADAUTH:
+            drawTextCentered("Link BadAuth", linkY);
+            break;
+        default:
+            drawTextCentered("Link Unknown", linkY);
+            break;
+        }
+
+        drawTextCentered("Connecting to", 8);
+        drawTextCentered(WIFI_SSID, 16);
+
+        if (retryTimer > 0)
+        {
+            char retryTimerText[20];
+            snprintf(retryTimerText, sizeof(retryTimerText), "Retry in %d", retryTimer / 10);
+            drawTextCentered(retryTimerText, 24);
+            retryTimer -= 1;
+            if (retryTimer <= 0)
+            {
+                wifiConnectAsync(WIFI_SSID, WIFI_PASSWORD);
+                printf("Retrying connection...\n");
+            }
+        }
+        else
+        {
+            static int dots = 0;
+            dots = (time_us_32() / 500000) % 3;
+            char waitStr[20];
+            snprintf(waitStr, sizeof(waitStr), "Please wait%s", dots == 0 ? "." : (dots == 1 ? ".." : "..."));
+            drawTextCentered(waitStr, 24);
+        }
+        drawWave(SCREEN_HEIGHT - 16, sinSpeed, sinAmplitude);
+        showDisplay();
+    }
 
     // Create a UDP PCB (Protocol Control Block)
     gPCB = udp_new();

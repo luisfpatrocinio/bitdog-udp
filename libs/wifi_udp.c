@@ -24,13 +24,12 @@ void wifiSetup()
 {
     wifiInitCYW43();
     wifiEnableSTAMode();
-    wifiConnect(WIFI_SSID, WIFI_PASSWORD);
 }
 
-bool wifiConnect(const char *ssid, const char *password)
+bool wifiConnectTimeout(const char *ssid, const char *password, int timeout_ms)
 {
-    printf("Connecting to SSID: %s\n", ssid);
-    if (cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, 30000))
+    printf("Connecting to SSID (Timeout): %s\n", ssid);
+    if (cyw43_arch_wifi_connect_timeout_ms(ssid, password, CYW43_AUTH_WPA2_AES_PSK, timeout_ms))
     {
         printf("Failed to connect to Wi-Fi\n");
         return false;
@@ -42,9 +41,34 @@ bool wifiConnect(const char *ssid, const char *password)
     }
 }
 
+bool wifiConnectAsync(const char *ssid, const char *password)
+{
+    printf("Connecting to SSID (Async): %s\n", ssid);
+    if (cyw43_arch_wifi_connect_async(ssid, password, CYW43_AUTH_WPA2_AES_PSK))
+    {
+        printf("Failed to connect to Wi-Fi\n");
+        return false;
+    }
+    else
+    {
+        printf("Trying to connect to Wi-Fi...\n");
+        return true;
+    }
+}
+
+bool wifiIsConnected()
+{
+    return cyw43_tcpip_link_status(&cyw43_state, CYW43_ITF_STA) == CYW43_LINK_UP;
+}
+
 void wifiDisconnect()
 {
     // not implemented
+}
+
+int wifiGetStatus()
+{
+    return cyw43_wifi_link_status(&cyw43_state, CYW43_ITF_STA);
 }
 
 bool sendUDP(const char *msg)
