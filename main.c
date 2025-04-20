@@ -10,6 +10,7 @@
 #include "wifi_udp.h"
 #include "approach.h"
 #include "reset.h"
+#include "analog.h"
 
 // Math
 #include "math.h"
@@ -232,6 +233,7 @@ void setup()
     setButtonCallback(buttonCallback);
     initLeds();
     setAllLedsBrightness(0);
+    initAnalog();
 
     clearDisplay();
     drawTextCentered("Patro UDP", 16);
@@ -270,6 +272,83 @@ void drawInterface()
     float t = time_us_32() / 1e6;
     int _amp = sinAmplitude + sinf(t * 2 * M_PI) * 2;
     drawWave(SCREEN_HEIGHT - 8, _spd, _amp);
+
+    // Draw analog
+    char xStr[16];
+    snprintf(xStr, sizeof(xStr), "X: %d", analog_x);
+    drawText(0, SCREEN_HEIGHT - 16, xStr);
+    char yStr[16];
+    snprintf(yStr, sizeof(yStr), "Y: %d", analog_y);
+    drawText(0, SCREEN_HEIGHT - 24, yStr);
+}
+
+void showConnectingScreen()
+{
+    static int retryTimer = 0;
+    clearDisplay();
+
+    int linkY = SCREEN_HEIGHT - 8;
+    switch (wifiGetStatus())
+    {
+    case CYW43_LINK_DOWN:
+        drawTextCentered("Link Down", linkY);
+        break;
+    case CYW43_LINK_JOIN:
+        sinSpeed = approach(sinSpeed, 2, 0.05f);
+        sinAmplitude = approach(sinAmplitude, 4, 0.05f);
+        drawTextCentered("Link Join", linkY);
+        break;
+    case CYW43_LINK_NOIP:
+        drawTextCentered("Link NoIP", linkY);
+        break;
+    case CYW43_LINK_UP:
+        drawTextCentered("Link UP", linkY);
+        break;
+    case CYW43_LINK_FAIL:
+        drawTextCentered("Link Fail", linkY);
+        if (retryTimer <= 0)
+            retryTimer = 80;
+        break;
+    case CYW43_LINK_NONET:
+        sinSpeed = approach(sinSpeed, 1, 0.05f);
+        sinAmplitude = approach(sinAmplitude, 0, 0.2f);
+        drawTextCentered("Link NoNet", linkY);
+        if (retryTimer <= 0)
+            retryTimer = 80;
+        break;
+    case CYW43_LINK_BADAUTH:
+        drawTextCentered("Link BadAuth", linkY);
+        break;
+    default:
+        drawTextCentered("Link Unknown", linkY);
+        break;
+    }
+
+    drawTextCentered("Connecting to", 8);
+    drawTextCentered(WIFI_SSID, 16);
+
+    if (retryTimer > 0)
+    {
+        char retryTimerText[20];
+        snprintf(retryTimerText, sizeof(retryTimerText), "Retry in %d", retryTimer / 10);
+        drawTextCentered(retryTimerText, 24);
+        retryTimer -= 1;
+        if (retryTimer <= 0)
+        {
+            wifiConnectAsync(WIFI_SSID, WIFI_PASSWORD);
+            printf("Retrying connection...\n");
+        }
+    }
+    else
+    {
+        static int dots = 0;
+        dots = (time_us_32() / 500000) % 3;
+        char waitStr[20];
+        snprintf(waitStr, sizeof(waitStr), "Please wait%s", dots == 0 ? "." : (dots == 1 ? ".." : "..."));
+        drawTextCentered(waitStr, 24);
+    }
+    drawWave(SCREEN_HEIGHT - 16, sinSpeed, sinAmplitude);
+    showDisplay();
 }
 
 int main()
@@ -279,74 +358,10 @@ int main()
     wifiSetup();
 
     // Wi-fi connection screen
-    int retryTimer = 0;
     wifiConnectAsync(WIFI_SSID, WIFI_PASSWORD);
     while (!wifiIsConnected())
     {
-        clearDisplay();
-
-        int linkY = SCREEN_HEIGHT - 8;
-        switch (wifiGetStatus())
-        {
-        case CYW43_LINK_DOWN:
-            drawTextCentered("Link Down", linkY);
-            break;
-        case CYW43_LINK_JOIN:
-            sinSpeed = approach(sinSpeed, 2, 0.05f);
-            sinAmplitude = approach(sinAmplitude, 4, 0.05f);
-            drawTextCentered("Link Join", linkY);
-            break;
-        case CYW43_LINK_NOIP:
-            drawTextCentered("Link NoIP", linkY);
-            break;
-        case CYW43_LINK_UP:
-            drawTextCentered("Link UP", linkY);
-            break;
-        case CYW43_LINK_FAIL:
-            drawTextCentered("Link Fail", linkY);
-            break;
-        case CYW43_LINK_NONET:
-            sinSpeed = approach(sinSpeed, 1, 0.05f);
-            sinAmplitude = approach(sinAmplitude, 0, 0.2f);
-            drawTextCentered("Link NoNet", linkY);
-            if (retryTimer <= 0)
-            {
-                retryTimer = 80;
-            }
-            break;
-        case CYW43_LINK_BADAUTH:
-            drawTextCentered("Link BadAuth", linkY);
-            break;
-        default:
-            drawTextCentered("Link Unknown", linkY);
-            break;
-        }
-
-        drawTextCentered("Connecting to", 8);
-        drawTextCentered(WIFI_SSID, 16);
-
-        if (retryTimer > 0)
-        {
-            char retryTimerText[20];
-            snprintf(retryTimerText, sizeof(retryTimerText), "Retry in %d", retryTimer / 10);
-            drawTextCentered(retryTimerText, 24);
-            retryTimer -= 1;
-            if (retryTimer <= 0)
-            {
-                wifiConnectAsync(WIFI_SSID, WIFI_PASSWORD);
-                printf("Retrying connection...\n");
-            }
-        }
-        else
-        {
-            static int dots = 0;
-            dots = (time_us_32() / 500000) % 3;
-            char waitStr[20];
-            snprintf(waitStr, sizeof(waitStr), "Please wait%s", dots == 0 ? "." : (dots == 1 ? ".." : "..."));
-            drawTextCentered(waitStr, 24);
-        }
-        drawWave(SCREEN_HEIGHT - 16, sinSpeed, sinAmplitude);
-        showDisplay();
+        showConnectingScreen();
     }
 
     // Create a UDP PCB (Protocol Control Block)
@@ -370,6 +385,14 @@ int main()
         pressedTimer = MAX(pressedTimer - 1, 0);
 
         clearDisplay();
+
+        // Get Analog
+        updateAxis();
+
+        // Send Analog data via udp
+        char udpMsg[32];
+        snprintf(udpMsg, sizeof(udpMsg), "A|%d|%d", analog_x, analog_y);
+        sendUDP(udpMsg);
 
         drawInterface();
 
