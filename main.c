@@ -11,6 +11,7 @@
 #include "approach.h"
 #include "reset.h"
 #include "analog.h"
+#include "buzzer.h"
 
 // Math
 #include "math.h"
@@ -160,6 +161,19 @@ void runCommandParam(char *msg, char *param)
             printf("Invalid brightness value for GREEN LED: %s. Must be between 0 and 255.\n", param);
         }
     }
+    else if (strcmp(msg, "play_tone") == 0)
+    {
+        int frequency = atoi(param); // Convert the parameter to an integer
+        if (frequency > 0)
+        {
+            printf("[UDP] Playing tone with frequency %d Hz\n", frequency);
+            playTone(frequency, 100);
+        }
+        else
+        {
+            printf("Invalid frequency value for play_tone: %s. Must be greater than 0.\n", param);
+        }
+    }
     else
     {
         printf("Unknown command: %s\n", msg);
@@ -234,6 +248,7 @@ void setup()
     initLeds();
     setAllLedsBrightness(0);
     initAnalog();
+    initBuzzerPWM();
 
     clearDisplay();
     drawTextCentered("Patro UDP", 16);
@@ -250,7 +265,7 @@ void drawInterface()
     if (gTargetIP.addr != 0)
     {
         // Draw IP
-        char ipStr[16];
+        char ipStr[32];
         snprintf(ipStr, sizeof(ipStr), "IP: %s", ipaddr_ntoa(&gTargetIP));
         drawText(0, 10, ipStr);
 
@@ -269,8 +284,7 @@ void drawInterface()
     // Draw Wave
     sinAmplitude = approach(sinAmplitude, 1, 0.05f); // Smoothly approach to 1
     int _spd = 18;
-    float t = time_us_32() / 1e6;
-    int _amp = sinAmplitude + sinf(t * 2 * M_PI) * 2;
+    int _amp = sinAmplitude;
     drawWave(SCREEN_HEIGHT - 8, _spd, _amp);
 
     // Draw analog
@@ -377,7 +391,8 @@ int main()
     udp_recv(gPCB, udpReceiveCallback, NULL);
 
     // Add a repeating timer to send UDP packets
-    add_repeating_timer_ms(69, timerCallback, NULL, &sendUDPTimer);
+    // DEATIVADO POR ENQUANTO.
+    // add_repeating_timer_ms(69, timerCallback, NULL, &sendUDPTimer);
 
     while (true)
     {
