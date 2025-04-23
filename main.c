@@ -176,13 +176,13 @@ void buttonCallback(uint gpio, uint32_t events)
     {
         pressedTimer = 10;
         printf("Button A pressed\n");
-        sendUDP("Hello from Patro!");
+        sendUDP("B|0");
     }
     else if (gpio == BTB && isButtonPressed(BTB))
     {
         pressedTimer = 10;
         printf("Button B pressed\n");
-        sendUDP("Patro te leva de nave.");
+        sendUDP("B|1");
     }
 }
 
@@ -393,6 +393,16 @@ int main()
         char udpMsg[32];
         snprintf(udpMsg, sizeof(udpMsg), "A|%d|%d", analog_x, analog_y);
         sendUDP(udpMsg);
+
+        // Send Button data via udp
+        if (isButtonPressed(BTA))
+        {
+            sendUDP("B|0");
+        }
+        if (isButtonPressed(BTB))
+        {
+            sendUDP("B|1");
+        }
 
         drawInterface();
 

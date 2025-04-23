@@ -17,7 +17,7 @@
 #define ANALOG_BTN 22
 
 /** @brief Maximum value for analog input (used for mapping). */
-#define ANALOG_MAX_VALUE 5
+#define ANALOG_MAX_VALUE 10
 
 /** @brief Deadzone threshold for analog inputs. */
 #define DEADZONE 1
