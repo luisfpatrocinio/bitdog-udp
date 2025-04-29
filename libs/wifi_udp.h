@@ -12,8 +12,10 @@
 #define BEACON_TARGET "192.168.137.1"
 #define BEACON_INTERVAL_MS 1000
 
-#define WIFI_SSID "pat - senha: freertos"
-#define WIFI_PASSWORD "freertos"
+#define WIFI_SSID "Patrocinio"
+#define WIFI_PASSWORD "patropatro"
+
+#define UDP_BROADCAST_PORT 1234
 
 extern struct udp_pcb *gPCB;
 extern struct repeating_timer sendUDPTimer;
@@ -33,5 +35,7 @@ void wifiDisconnect();
 int wifiGetStatus();
 
 bool sendUDP(const char *msg);
+
+void openUDPBind();
 
 #endif // WIFI_UDP_H

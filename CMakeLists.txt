@@ -39,6 +39,11 @@ add_executable(PatroUDP main.c
     ${LIBS}
 )
 
+# Incluir a biblioteca ws2812b
+add_subdirectory(
+    libs/RP2040-WS2812B-Animation
+)
+
 pico_set_program_name(PatroUDP "PatroUDP")
 pico_set_program_version(PatroUDP "0.1")
 
@@ -50,10 +55,18 @@ pico_enable_stdio_usb(PatroUDP 1)
 target_link_libraries(PatroUDP
         pico_stdlib)
 
+# Adicionar os arquivos fontes do projeto
+target_sources(PatroUDP PRIVATE
+    ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/ws2812b_animation.c
+)
+
 # Add the standard include files to the build
 target_include_directories(PatroUDP PRIVATE
         ${CMAKE_CURRENT_LIST_DIR}
         ${CMAKE_CURRENT_LIST_DIR}/libs
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc/CP0-EU
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc/utf8-iterator/source
 )
 
 # Add any user requested libraries
@@ -62,7 +75,32 @@ target_link_libraries(PatroUDP
     hardware_i2c
     hardware_adc
     hardware_pwm
+    ws2812b_animation
 )
 
 pico_add_extra_outputs(PatroUDP)
 
+# Gerar o header PIO para ws2812
+pico_generate_pio_header(PatroUDP ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/ws2812.pio)
+
+# Configuração da biblioteca ws2812b_animation
+set(TARGET_NAME "ws2812b_animation")
+
+if (NOT TARGET ${TARGET_NAME})
+    add_library(${TARGET_NAME} INTERFACE)
+
+    target_sources(${TARGET_NAME} INTERFACE
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/ws2812b_animation.c
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc/utf8-iterator/source/utf-8.c
+    )
+
+    target_include_directories(${TARGET_NAME} INTERFACE
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc/CP0-EU
+        ${CMAKE_CURRENT_LIST_DIR}/libs/RP2040-WS2812B-Animation/inc/utf8-iterator/source
+    )
+
+    target_link_libraries(${TARGET_NAME} INTERFACE
+        hardware_pio
+    )
+endif()

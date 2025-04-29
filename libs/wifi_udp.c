@@ -73,10 +73,11 @@ int wifiGetStatus()
 
 bool sendUDP(const char *msg)
 {
-    printf("[UDP] Sending: %s\n", msg);
+    // printf("[UDP] Sending: %s\n", msg);
 
-    ip_addr_t addr;
-    ipaddr_aton(BEACON_TARGET, &addr);
+    ip_addr_t addr = gTargetIP;
+
+    printf("[UDP] Sending to %s:%d\n", ipaddr_ntoa(&addr), UDP_PORT);
 
     struct pbuf *p = pbuf_alloc(PBUF_TRANSPORT, strlen(msg) + 1, PBUF_RAM);
     if (!p)
@@ -87,4 +88,10 @@ bool sendUDP(const char *msg)
     pbuf_free(p);
 
     return er == ERR_OK;
+}
+
+void openUDPBind()
+{
+    printf("[UDP] Binding to port %d\n", UDP_BROADCAST_PORT);
+    udp_bind(gPCB, IP_ANY_TYPE, UDP_BROADCAST_PORT);
 }

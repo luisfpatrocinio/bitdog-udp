@@ -12,6 +12,7 @@
 #include "reset.h"
 #include "analog.h"
 #include "buzzer.h"
+#include "ws2812b_animation.h"
 
 // Math
 #include "math.h"
@@ -45,6 +46,14 @@ void runCommand(char *msg)
 
 void runCommandParam(char *msg, char *param)
 {
+    // Verificar se é um comando de reconhecimento.
+    if (strcmp(msg, "udp_handshake") == 0)
+    {
+        printf("UDP Handshake received\n");
+        sendUDP("udp_handshake_ack");
+        return;
+    }
+
     // PING
     if (strcmp(msg, "ping") == 0)
     {
@@ -161,17 +170,59 @@ void runCommandParam(char *msg, char *param)
             printf("Invalid brightness value for GREEN LED: %s. Must be between 0 and 255.\n", param);
         }
     }
+    // Play Tone
     else if (strcmp(msg, "play_tone") == 0)
     {
         int frequency = atoi(param); // Convert the parameter to an integer
         if (frequency > 0)
         {
             printf("[UDP] Playing tone with frequency %d Hz\n", frequency);
-            playTone(frequency, 100);
+            playTone(frequency, 50);
         }
         else
         {
             printf("Invalid frequency value for play_tone: %s. Must be greater than 0.\n", param);
+        }
+    }
+
+    // Operar Matriz de LED
+    else if (strcmp(msg, "led_matrix_on") == 0)
+    {
+        int led = atoi(param); // Convert the parameter to an integer
+        if (led >= 0 && led < 25)
+        {
+            printf("[UDP] LED Matrix %d\n", led);
+            ws2812b_fill(led, led, GRB_GREEN); // Fill the LED with green color
+        }
+        else
+        {
+            printf("Invalid LED index for led_matrix: %s. Must be between 0 and 24.\n", param);
+        }
+    }
+    else if (strcmp(msg, "led_matrix_off") == 0)
+    {
+        int led = atoi(param); // Convert the parameter to an integer
+        if (led >= 0 && led < 25)
+        {
+            printf("[UDP] LED Matrix %d\n", led);
+            ws2812b_fill(led, led, GRB_BLACK); // Fill the LED with black color (off)
+        }
+        else
+        {
+            printf("Invalid LED index for led_matrix: %s. Must be between 0 and 24.\n", param);
+        }
+    }
+    else if (strcmp(msg, "led_matrix_brightness") == 0)
+    {
+        int brightness = atoi(param); // Convert the parameter to an integer
+        if (brightness >= 0 && brightness <= 7)
+        {
+            printf("[UDP] Setting LED Matrix brightness to %d\n", brightness);
+            ws2812b_set_global_dimming(brightness); // Set the brightness of the LED matrix
+        }
+        else
+        {
+            printf("Invalid brightness value for LED Matrix: %s. Must be between 0 and 255.\n", param);
         }
     }
     else
@@ -213,6 +264,8 @@ bool timerCallback(struct repeating_timer *t)
 
 void udpReceiveCallback(void *arg, struct udp_pcb *pcb, struct pbuf *p, const ip_addr_t *addr, u16_t port)
 {
+    printf("[UDP] Received packet from %s:%d\n", ipaddr_ntoa(addr), port);
+
     if (!p)
     {
         printf("Received empty packet\n");
@@ -249,6 +302,9 @@ void setup()
     setAllLedsBrightness(0);
     initAnalog();
     initBuzzerPWM();
+
+    ws2812b_init(pio0, 7, 25);
+    ws2812b_set_global_dimming(3);
 
     clearDisplay();
     drawTextCentered("Patro UDP", 16);
@@ -371,6 +427,9 @@ int main()
     setup();
     wifiSetup();
 
+    // Para fins de teste, ligar toda a matriz de led
+    // ws2812b_fill_all(GRB_RED);
+
     // Wi-fi connection screen
     wifiConnectAsync(WIFI_SSID, WIFI_PASSWORD);
     while (!wifiIsConnected())
@@ -388,6 +447,7 @@ int main()
     }
 
     // Set up the UDP receive callback to handle incoming packets
+    openUDPBind();
     udp_recv(gPCB, udpReceiveCallback, NULL);
 
     // Add a repeating timer to send UDP packets
@@ -422,5 +482,6 @@ int main()
         drawInterface();
 
         showDisplay();
+        ws2812b_render();
     }
 }

@@ -40,6 +40,7 @@
         "pbuf.h": "c",
         "text.h": "c",
         "cyw43_arch.h": "c",
-        "watchdog.h": "c"
+        "watchdog.h": "c",
+        "*.tcc": "c"
     }
 }
