@@ -53,8 +53,8 @@ void runCommandParam(char *msg, char *param)
         sendUDP("udp_handshake_ack");
         return;
     }
-
-    // PING
+    
+    // Ping
     if (strcmp(msg, "ping") == 0)
     {
         printf("[UDP] PING -> Respondendo com PONG'\n");

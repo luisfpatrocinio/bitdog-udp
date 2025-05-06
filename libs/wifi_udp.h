@@ -12,8 +12,8 @@
 #define BEACON_TARGET "192.168.137.1"
 #define BEACON_INTERVAL_MS 1000
 
-#define WIFI_SSID "Patrocinio"
-#define WIFI_PASSWORD "patropatro"
+#define WIFI_SSID "patro"
+#define WIFI_PASSWORD "cafecombiscoito"
 
 #define UDP_BROADCAST_PORT 1234
 
