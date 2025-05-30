@@ -7,12 +7,14 @@
 #include "text.h"
 #include "buttons.h"
 #include "led.h"
-#include "wifi_udp.h"
 #include "approach.h"
 #include "reset.h"
 #include "analog.h"
 #include "buzzer.h"
 #include "ws2812b_animation.h"
+
+// Wi-fi UDP
+#include "wifi_udp.h"
 
 // Math
 #include "math.h"
@@ -53,7 +55,7 @@ void runCommandParam(char *msg, char *param)
         sendUDP("udp_handshake_ack");
         return;
     }
-    
+
     // Ping
     if (strcmp(msg, "ping") == 0)
     {
@@ -303,7 +305,9 @@ void setup()
     initAnalog();
     initBuzzerPWM();
 
+    // Clear Leds Matrix
     ws2812b_init(pio0, 7, 25);
+    ws2812b_clear();
     ws2812b_set_global_dimming(3);
 
     clearDisplay();
